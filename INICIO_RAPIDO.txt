@@ -1,0 +1,30 @@
+╔══════════════════════════════════════════════════════════════╗
+║     🚀 INICIO RÁPIDO - SUPPLY CHAIN TRACKER                 ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ ANVIL: Ya está corriendo en http://localhost:8545
+✅ CONTRATO: Desplegado en 0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB
+✅ TESTS: 10/10 pasados
+
+📋 PARA INICIAR EL FRONTEND:
+
+Opción 1 (Más Fácil):
+  1. Abre Windows Explorer
+  2. Navega a: C:\Users\jcmxo\98_pfm_traza_2025\frontend
+  3. Haz doble clic en: iniciar.bat
+
+Opción 2 (PowerShell):
+  1. Abre PowerShell
+  2. Ejecuta:
+     cd C:\Users\jcmxo\98_pfm_traza_2025\frontend
+     npm run dev
+
+Opción 3 (Script VBS - Silencioso):
+  1. Haz doble clic en: frontend\iniciar.vbs
+  2. El frontend iniciará en segundo plano
+
+🌐 Una vez iniciado, abre: http://localhost:8000
+
+⚠️ NOTA: El frontend debe ejecutarse desde Windows, no desde WSL.
+
+═══════════════════════════════════════════════════════════════
