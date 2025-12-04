@@ -21,6 +21,7 @@ export const CONTRACT_ABI = [
   "function rejectTransfer(uint256 transferId)",
   "function getTransfer(uint256 transferId) view returns (tuple(uint256 id, uint256 tokenId, address from, address to, uint8 status, string message, uint256 timestamp, bool exists))",
   "function getPendingTransfers(address userAddress) view returns (uint256[])",
+  "function transferCounter() view returns (uint256)",
   
   // Traceability
   "function getTokenTraceability(uint256 tokenId) view returns (uint256[])",

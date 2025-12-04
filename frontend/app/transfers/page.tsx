@@ -1,7 +1,7 @@
 "use client";
 
 import { useWeb3 } from "@/contexts/Web3Context";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Transfer, Token } from "@/types";
 
@@ -10,18 +10,21 @@ export default function TransfersPage() {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [tokens, setTokens] = useState<Map<string, Token>>(new Map());
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
+  const loadedAccountRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (contract && account) {
-      loadTransfers();
+  const loadTransfers = useCallback(async () => {
+    if (!contract || !account || loadingRef.current) return;
+
+    // Evitar recargar si ya se cargaron las transferencias para esta cuenta
+    if (loadedAccountRef.current === account) {
+      return;
     }
-  }, [contract, account]);
-
-  const loadTransfers = async () => {
-    if (!contract || !account) return;
 
     try {
+      loadingRef.current = true;
       setLoading(true);
+      loadedAccountRef.current = account;
       console.log("Loading transfers for account:", account);
       console.log("Account checksum:", account);
       console.log("Account lowercase:", account.toLowerCase());
@@ -113,10 +116,24 @@ export default function TransfersPage() {
       setTokens(tokenMap);
     } catch (error) {
       console.error("Error loading transfers:", error);
+      loadedAccountRef.current = null; // Reset en caso de error para permitir reintento
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  };
+  }, [contract, account]);
+
+  useEffect(() => {
+    if (contract && account) {
+      loadTransfers();
+    } else {
+      // Reset cuando no hay contrato o cuenta
+      setTransfers([]);
+      setTokens(new Map());
+      setLoading(false);
+      loadedAccountRef.current = null;
+    }
+  }, [contract, account, loadTransfers]);
 
   const handleAccept = async (transferId: bigint) => {
     if (!contract) return;
@@ -124,6 +141,8 @@ export default function TransfersPage() {
     try {
       const tx = await contract.acceptTransfer(transferId);
       await tx.wait();
+      // Reset para permitir recargar después de aceptar
+      loadedAccountRef.current = null;
       await loadTransfers();
     } catch (error) {
       console.error("Error accepting transfer:", error);
@@ -137,6 +156,8 @@ export default function TransfersPage() {
     try {
       const tx = await contract.rejectTransfer(transferId);
       await tx.wait();
+      // Reset para permitir recargar después de rechazar
+      loadedAccountRef.current = null;
       await loadTransfers();
     } catch (error) {
       console.error("Error rejecting transfer:", error);
@@ -149,12 +170,20 @@ export default function TransfersPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Transferencias Pendientes</h1>
-          <Link
-            href="/dashboard"
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-          >
-            ← Dashboard
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href="/transfers/history"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Ver Historial
+            </Link>
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              ← Dashboard
+            </Link>
+          </div>
         </div>
 
         {loading ? (

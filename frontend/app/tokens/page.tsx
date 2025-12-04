@@ -1,7 +1,7 @@
 "use client";
 
 import { useWeb3 } from "@/contexts/Web3Context";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Token } from "@/types";
 
@@ -9,18 +9,22 @@ export default function TokensPage() {
   const { contract, account, user } = useWeb3();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
+  const loadedAccountRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (contract && account) {
-      loadTokens();
+  const loadTokens = useCallback(async () => {
+    if (!contract || !account || loadingRef.current) return;
+
+    // Evitar recargar si ya se cargaron los tokens para esta cuenta
+    if (loadedAccountRef.current === account) {
+      return;
     }
-  }, [contract, account]);
-
-  const loadTokens = async () => {
-    if (!contract || !account) return;
 
     try {
+      loadingRef.current = true;
       setLoading(true);
+      loadedAccountRef.current = account;
+      
       const tokenIds = await contract.getUserTokens(account);
       const tokenPromises = tokenIds.map((id: bigint) => contract.getToken(id));
       const tokenData = await Promise.all(tokenPromises);
@@ -40,10 +44,23 @@ export default function TokensPage() {
       setTokens(tokensList);
     } catch (error) {
       console.error("Error loading tokens:", error);
+      loadedAccountRef.current = null; // Reset en caso de error para permitir reintento
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  };
+  }, [contract, account]);
+
+  useEffect(() => {
+    if (contract && account) {
+      loadTokens();
+    } else {
+      // Reset cuando no hay contrato o cuenta
+      setTokens([]);
+      setLoading(false);
+      loadedAccountRef.current = null;
+    }
+  }, [contract, account, loadTokens]);
 
   return (
     <div className="min-h-screen p-8">

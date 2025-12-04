@@ -2,48 +2,100 @@
 
 import { useWeb3 } from "@/contexts/Web3Context";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Token } from "@/types";
 
 export default function DashboardPage() {
   const { contract, account, user, isConnected } = useWeb3();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
+  const loadedAccountRef = useRef<string | null>(null);
+
+  const loadTokens = useCallback(async () => {
+    if (!contract || !account || loadingRef.current) return;
+
+    // Evitar recargar si ya se cargaron los tokens para esta cuenta
+    if (loadedAccountRef.current === account) {
+      return;
+    }
+
+    try {
+      loadingRef.current = true;
+      setLoading(true);
+      loadedAccountRef.current = account;
+      
+      console.log("Loading tokens for account:", account);
+      const tokenIds = await contract.getUserTokens(account);
+      console.log("Token IDs received from contract:", tokenIds);
+      console.log("Number of tokens:", tokenIds?.length);
+      
+      const tokenPromises = tokenIds.map((id: bigint) => contract.getToken(id));
+      const tokenData = await Promise.all(tokenPromises);
+      console.log("Token data received:", tokenData);
+      
+      const tokensList: Token[] = tokenData.map((data: any) => {
+        const token = {
+          id: data[0],
+          owner: data[1],
+          tokenType: Number(data[2]),
+          name: data[3],
+          description: data[4],
+          metadata: data[5],
+          parentTokens: data[6],
+          creationDate: data[7],
+          exists: data[8],
+        };
+        console.log("Processed token:", {
+          id: token.id.toString(),
+          name: token.name,
+          description: token.description,
+          type: token.tokenType === 0 ? "RawMaterial" : "Product"
+        });
+        return token;
+      });
+
+      console.log("Final tokens list:", tokensList);
+      
+      // Verificación adicional: verificar tokens directamente por ID
+      console.log("=== VERIFICACIÓN ADICIONAL ===");
+      for (let i = 1; i <= 5; i++) {
+        try {
+          const directToken = await contract.getToken(BigInt(i));
+          if (directToken[8]) { // exists
+            console.log(`Token ID ${i} (directo):`, {
+              id: directToken[0].toString(),
+              name: directToken[3],
+              description: directToken[4],
+              owner: directToken[1],
+              type: Number(directToken[2]) === 0 ? "RawMaterial" : "Product"
+            });
+          }
+        } catch (e) {
+          // Token no existe, continuar
+        }
+      }
+      
+      setTokens(tokensList);
+    } catch (error) {
+      console.error("Error loading tokens:", error);
+      loadedAccountRef.current = null; // Reset en caso de error para permitir reintento
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  }, [contract, account]);
 
   useEffect(() => {
     if (contract && account) {
       loadTokens();
-    }
-  }, [contract, account]);
-
-  const loadTokens = async () => {
-    if (!contract || !account) return;
-
-    try {
-      setLoading(true);
-      const tokenIds = await contract.getUserTokens(account);
-      const tokenPromises = tokenIds.map((id: bigint) => contract.getToken(id));
-      const tokenData = await Promise.all(tokenPromises);
-      
-      const tokensList: Token[] = tokenData.map((data: any) => ({
-        id: data[0],
-        owner: data[1],
-        tokenType: Number(data[2]),
-        name: data[3],
-        description: data[4],
-        metadata: data[5],
-        parentTokens: data[6],
-        creationDate: data[7],
-        exists: data[8],
-      }));
-
-      setTokens(tokensList);
-    } catch (error) {
-      console.error("Error loading tokens:", error);
-    } finally {
+    } else {
+      // Reset cuando no hay contrato o cuenta
+      setTokens([]);
       setLoading(false);
+      loadedAccountRef.current = null;
     }
-  };
+  }, [contract, account, loadTokens]);
 
   if (!isConnected) {
     return (
